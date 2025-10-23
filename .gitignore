@@ -1,0 +1,37 @@
+cat > .gitignore <<'EOF'
+# Python/conda cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.ipynb_checkpoints/
+
+# OS/editor
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.vscode/
+.idea/
+
+# SCT + analysis outputs
+outputs/
+qc/
+*.csv
+*.tsv
+*.log
+*.html
+*.png
+*.pdf
+
+# Medical data (NEVER commit DICOM/NIfTI)
+*.dcm
+*.IMA
+*.nii
+*.nii.gz
+
+# Temp / scratch
+tmp/
+*.tmp
+*.bak
+EOF
