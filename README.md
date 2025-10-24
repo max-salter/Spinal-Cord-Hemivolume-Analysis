@@ -1,236 +1,194 @@
-# 🧠 Spinal Cord Hemivolume Quantification Pipeline (SCT-based)
+# Spinal Cord Hemivolume Analysis Pipeline (PAM50-based)
 
-This repository contains a reproducible **Bash + Python** pipeline for computing **left/right spinal cord hemivolumes per vertebral level** from sagittal T2-weighted MRI DICOM series using the **Spinal Cord Toolbox (SCT)**.
-
-The pipeline automatically:
-- Converts **DICOM → NIfTI**
-- Segments the spinal cord
-- Labels vertebral levels (C2–C8 by default)
-- Splits the cord into **left/right hemicords**
-- Quantifies **cross-sectional area (CSA)** and **hemivolume** per level
-- Computes **asymmetry indices**
-- Outputs tidy `.csv` tables ready for analysis or publication
+## Overview
+This repository contains a fully automated workflow for computing **left and right hemicord volumes** per vertebral level from sagittal T2-weighted MRI scans of the cervical spinal cord.  
+The pipeline uses the **Spinal Cord Toolbox (SCT)** and **PAM50 atlas** to perform segmentation, vertebral labeling, template registration, and hemispheric metric extraction.
 
 ---
 
-## 📁 Repository Contents
+## Dependencies
 
-```
-├── sct_hemi_metrics.sh               ← main pipeline script
-├── README.md                         ← this documentation
-└── (outputs per subject appear in working directory when run)
-```
+### Required Software
+| Component | Version | Purpose |
+|------------|----------|----------|
+| **Spinal Cord Toolbox (SCT)** | ≥ 6.0 | Segmentation, registration, labeling, metrics |
+| **dcm2niix** | ≥ 1.0 | DICOM → NIfTI conversion |
+| **bash** | Any modern Linux shell | Script execution |
+| **Python 3.x** (with `pandas`) | Optional | CSV merging and metrics summary |
 
-Each subject folder produced by the script (named automatically from DICOM path metadata) will contain:
-
-```
-<Subject_ID>/
-│
-├── nifti/                                   ← converted DICOMs (.nii.gz)
-│
-├── <Subject_ID>_T2_RPI.nii.gz               ← reoriented sagittal T2 image
-├── <Subject_ID>_sc.nii.gz                   ← spinal cord segmentation
-├── <Subject_ID>_sc_labeled.nii.gz           ← vertebral level labels
-├── <Subject_ID>_sc_labeled_discs.nii.gz     ← intervertebral disc map
-│
-├── <Subject_ID>_hemi_left.nii.gz            ← left hemicord mask
-├── <Subject_ID>_hemi_right.nii.gz           ← right hemicord mask
-│
-├── <Subject_ID>_left_hemivol_perlevel.csv   ← per-level left metrics
-├── <Subject_ID>_right_hemivol_perlevel.csv  ← per-level right metrics
-├── <Subject_ID>_csa_perlevel.csv            ← whole-cord CSA metrics
-├── <Subject_ID>_metrics_perlevel.csv        ← tidy merged summary
-│
-├── warp_curve2straight.nii.gz               ← straightening warp
-├── warp_straight2curve.nii.gz               ← inverse warp
-├── straight_ref.nii.gz, straightening.cache ← SCT intermediates
-└── labels.nii.gz                            ← diagnostic output
-```
-
----
-
-## 🧠 Overview of the Processing Pipeline
-
-### Step 1. DICOM → NIfTI Conversion
-- **Tool:** `dcm2niix`
-- **Input:** DICOM directory containing a sagittal T2 sequence
-- **Output:** `.nii.gz` file in `/nifti` subfolder
-- **Purpose:** Converts scanner-native DICOMs to NIfTI with standardized orientation and metadata.
-
-### Step 2. Reorientation to RPI
-- **Tool:** `sct_image -setorient RPI`
-- **Purpose:** Ensures the image is in **Right–Posterior–Inferior (RPI)** orientation, required by SCT.
-
-### Step 3. Spinal Cord Segmentation
-- **Tool:** `sct_deepseg_sc -c t2`
-- **Output:** `<Subject_ID>_sc.nii.gz`
-- **Purpose:** Performs deep-learning spinal cord segmentation.
-
-### Step 4. Vertebral Level Labeling
-- **Tool:** `sct_label_vertebrae -c t2`
-- **Output:** `<Subject_ID>_sc_labeled.nii.gz`
-- **Purpose:** Assigns integer vertebral labels (C1 = 1, C2 = 2, …).
-
-### Step 5. Hemicord Mask Creation
-- **Tool:** Embedded Python script using `nibabel`
-- **Input:** Full spinal cord segmentation
-- **Output:** Left/right hemicord masks (`*_hemi_left/right.nii.gz`)
-- **Logic:** Splits each axial slice at the x-coordinate of the segmentation’s center of mass.
-
-### Step 6. Per-Level Metrics Extraction
-- **Tool:** `sct_process_segmentation`
-- **Purpose:** Computes per-level shape and area metrics for:
-  - Left hemicord
-  - Right hemicord
-  - Whole cord (CSA)
-
-### Step 7. Merging and Cleaning
-- **Tool:** Embedded Python merge block (using `pandas`)
-- **Output:** `<Subject_ID>_metrics_perlevel.csv`
-
-| Column | Description |
-|:--|:--|
-| `subject` | Derived subject identifier |
-| `level` | Vertebral level (integer) |
-| `CSA_mm2` | Mean cross-sectional area (total cord) |
-| `volume_mm3_left` | Volume of left hemicord |
-| `volume_mm3_right` | Volume of right hemicord |
-| `volume_mm3_total` | Left + Right |
-| `asymmetry_index` | (R − L) / (R + L) |
-
----
-
-## ⚙️ Usage
-
-### 1. Activate SCT Environment
-Run inside **WSL (Windows Subsystem for Linux)** with SCT active:
-
+### Environment Setup
+Activate your SCT environment before running:
 ```bash
-conda activate sct
+source /path/to/spinalcordtoolbox/bin/activate
 ```
 
-### 2. Run the Script
-Provide the path to the sagittal T2 DICOM folder:
+Ensure the SCT data directory contains the **PAM50 atlas** (default: `/home/username/spinalcordtoolbox/data/PAM50`).
 
+---
+
+## Workflow Summary
+
+### 1. Input
+- **Input:** DICOM folder containing sagittal T2 images.  
+- **Output directory:** A new folder automatically created under the working directory using the subject’s ID derived from the DICOM path.
+
+### 2. DICOM Conversion
 ```bash
-./sct_hemi_metrics.sh "/mnt/c/Users/<username>/Desktop/.../SAG_T2_2"
+dcm2niix -z y -o ./nifti input_dicom_folder/
 ```
+Generates the raw NIfTI image (e.g., `Subject_T2.nii.gz`) stored in `./nifti`.
 
-Both **Windows paths** (`C:\...`) and **WSL paths** (`/mnt/c/...`) are supported.
-
-### 3. Configure Vertebral Levels
-Edit the `LEVELS` variable near the top of the script:
-
+### 3. Reorientation
 ```bash
-LEVELS="2:8"   # analyze C2–C8 (default)
-LEVELS=""      # analyze all detected levels
-LEVELS="3:7"   # analyze C3–C7 only
+sct_image -i Subject_T2.nii.gz -setorient RPI -o Subject_T2_RPI.nii.gz
 ```
+Ensures consistent orientation for SCT tools.
 
----
-
-## 📊 Output Interpretation
-
-### Per-level CSVs
-Contain detailed SCT metrics (area, orientation, diameters, etc.) per vertebral level.
-
-### Merged Summary CSV
-Provides concise, publication-ready data per vertebral level.
-
-| subject | level | CSA_mm2 | volume_mm3_left | volume_mm3_right | volume_mm3_total | asymmetry_index |
-|:--|:--:|--:|--:|--:|--:|--:|
-| Injury_F_53_CSpine_Routine_-_3869894001 | 8 | 33.75 | 403.5 | 416.7 | 820.2 | 0.016 |
-| ... | 7 | 39.33 | 372.1 | 391.4 | 763.5 | 0.025 |
-| ... | 6 | 41.72 | 410.9 | 402.3 | 813.2 | −0.011 |
-
----
-
-## 🧩 Dependencies
-
-- **Spinal Cord Toolbox (SCT)** ≥ 6.0.0  
-  https://spinalcordtoolbox.com/
-- **dcm2niix** ≥ v1.0.2025
-- **Python ≥ 3.8**
-- Modules (included in SCT): `pandas`, `nibabel`, `numpy`
-
----
-
-## 🧪 Validation & QC
-
-Visualize results:
-
+### 4. Spinal Cord Segmentation
 ```bash
-fsleyes Injury_F_53_CSpine_Routine_-_3869894001_T2_RPI.nii.gz         Injury_F_53_CSpine_Routine_-_3869894001_sc_labeled.nii.gz &
+sct_deepseg_sc -i Subject_T2_RPI.nii.gz -c t2 -o Subject_sc.nii.gz
+```
+Generates a binary segmentation of the spinal cord.
+
+### 5. Vertebral Labeling
+```bash
+sct_label_vertebrae -i Subject_T2_RPI.nii.gz -s Subject_sc.nii.gz -c t2
+```
+Labels vertebral levels and intervertebral discs, producing:
+- `*_sc_labeled.nii.gz` (vertebral body map)
+- `*_sc_labeled_discs.nii.gz` (disc label map)
+
+### 6. Template Registration
+```bash
+sct_register_to_template -i Subject_T2_RPI.nii.gz -s Subject_sc.nii.gz -ldisc Subject_sc_labeled_discs.nii.gz -c t2
+```
+Registers subject anatomy to the **PAM50 template** and creates forward/inverse warps:
+- `warp_template2anat.nii.gz`
+- `warp_anat2template.nii.gz`
+
+### 7. Atlas Warping and Hemispheric Mask Creation
+PAM50 white/gray matter atlas labels are warped into the subject space.  
+Left/right IDs are parsed from `info_label.txt` to build:
+- `atlas_left_labels_sum.nii.gz`
+- `atlas_right_labels_sum.nii.gz`
+- Binary masks: `atlas_left_mask_bin.nii.gz`, `atlas_right_mask_bin.nii.gz`
+- Hemicord masks (intersection with segmentation):  
+  `*_hemi_left.nii.gz`, `*_hemi_right.nii.gz`
+
+### 8. Per-Level Metric Computation
+For left and right hemicords:
+```bash
+sct_process_segmentation -i *_hemi_left.nii.gz -perlevel 1 -discfile *_sc_labeled_discs.nii.gz -vert 2:8 -o *_left_hemivol_perlevel.csv
+sct_process_segmentation -i *_hemi_right.nii.gz -perlevel 1 -discfile *_sc_labeled_discs.nii.gz -vert 2:8 -o *_right_hemivol_perlevel.csv
+```
+For the whole cord:
+```bash
+sct_process_segmentation -i *_sc.nii.gz -perlevel 1 -discfile *_sc_labeled_discs.nii.gz -vert 2:8 -o *_csa_perlevel.csv
 ```
 
-Verify segmentation and labeling alignment, and left/right mask symmetry.
+### 9. Metric Merging
+All CSVs are merged into one per-subject summary with columns:
+- `level`
+- `volume_mm3_left`
+- `volume_mm3_right`
+- `volume_mm3_total`
+- `CSA_mm2`
+- `asymmetry_index` = (R − L) / (R + L)
+
+Output:  
+`*_metrics_perlevel.csv`
 
 ---
 
-## 📈 Downstream Analysis
+## Output Files (per subject)
 
-```python
-import pandas as pd, glob, seaborn as sns, matplotlib.pyplot as plt
-dfs = [pd.read_csv(f) for f in glob.glob("*_metrics_perlevel.csv")]
-df = pd.concat(dfs)
-sns.barplot(data=df, x="level", y="asymmetry_index")
-plt.title("Hemicord Volume Asymmetry by Vertebral Level")
-plt.axhline(0, color='gray', linestyle='--')
-plt.show()
+| File | Description |
+|------|--------------|
+| `*_T2_RPI.nii` | Reoriented input MRI |
+| `*_sc.nii` | Spinal cord segmentation |
+| `*_sc_labeled.nii` | Vertebral body labels |
+| `*_sc_labeled_discs.nii` | Intervertebral disc labels |
+| `*_hemi_left.nii`, `*_hemi_right.nii` | Hemicord masks (subject space) |
+| `*_left_hemivol_perlevel.csv`, `*_right_hemivol_perlevel.csv` | Per-level hemivolumes |
+| `*_csa_perlevel.csv` | Whole-cord CSA per level |
+| `*_metrics_perlevel.csv` | Merged summary metrics |
+| `warp_template2anat.nii.gz`, `warp_anat2template.nii.gz` | Template ↔ Subject warps |
+| `straight_ref.nii`, `straightening.cache` | Straightened-space references |
+| `label/atlas/` | Warped PAM50 atlas files |
+| `nifti/` | Raw converted NIfTI images |
+
+---
+
+## Typical Workflow Summary
+```
+./sct_hemi_metrics_PAM50.sh "/path/to/DICOM_folder"
+```
+1. Converts DICOM → NIfTI.  
+2. Segments the cord.  
+3. Labels vertebrae/discs.  
+4. Registers subject ↔ PAM50 template.  
+5. Builds left/right atlas masks.  
+6. Computes per-level hemivolumes and CSA.  
+7. Merges all metrics into one CSV.  
+
+All outputs are stored under the subject’s directory (auto-generated in the working folder).
+
+---
+
+## Output Directory Example
+
+```
+Spinal-Cord-Hemivolume-Analysis/
+├── label/
+│   └── atlas/ (37 PAM50 region files)
+├── nifti/
+│   └── Subject_T2.nii.gz
+├── Injury_F_53_CSpine_Routine_-_3869894001_T2_RPI.nii
+├── Injury_F_53_CSpine_Routine_-_3869894001_sc.nii
+├── Injury_F_53_CSpine_Routine_-_3869894001_sc_labeled_discs.nii
+├── Injury_F_53_CSpine_Routine_-_3869894001_hemi_left.nii
+├── Injury_F_53_CSpine_Routine_-_3869894001_hemi_right.nii
+├── Injury_F_53_CSpine_Routine_-_3869894001_metrics_perlevel.csv
+└── warp_template2anat.nii.gz
 ```
 
 ---
 
-## ⚠️ Troubleshooting
+## Algorithm Summary
 
-| Symptom | Cause | Fix |
-|:--|:--|:--|
-| `ERROR: 'dcm2niix' not found in PATH` | SCT not activated | `conda activate sct` |
-| `ERROR: DICOM dir not found` | Path mismatch | Use `/mnt/c/...` path |
-| Labeling misaligned | Partial FOV | Manually correct segmentation |
-| Missing volume columns | Older SCT | Use updated merge section |
-
----
-
-## 🧬 Version Control
-
-```
-/spine-hemi-analysis
-├── sct_hemi_metrics.sh
-├── README.md
-└── outputs/ (git-ignored)
-```
-
-**.gitignore:**
-```
-*.nii
-*.nii.gz
-*.csv
-*.cache
-outputs/
-```
+1. **Segmentation:** Deep learning–based spinal cord segmentation (`sct_deepseg_sc`).
+2. **Labeling:** Automatic vertebral level detection from T2-weighted contrast.
+3. **Registration:** PAM50 template non-linearly registered to subject anatomy.
+4. **Atlas warping:** Each left/right atlas tract/GM region is warped into subject space.
+5. **Hemispheric masking:** Left/right masks combined across regions → intersection with subject segmentation.
+6. **Metric extraction:** Volume per level computed for each hemi; CSA computed for full cord.
+7. **Asymmetry computation:** Left vs. right volume differences quantified as an asymmetry index.
 
 ---
 
-## 🧾 Citation
+## Notes
 
-De Leener B, Lévy S, Dupont SM, Fonov VS, Stikov N, Collins DL, Callot V, Cohen-Adad J.  
-*SCT: Spinal Cord Toolbox, an open-source software for processing spinal cord MRI data.*  
-**NeuroImage**, 145 (2017): 24–43.  
-[10.1016/j.neuroimage.2016.10.009](https://doi.org/10.1016/j.neuroimage.2016.10.009)
-
----
-
-## 👤 Author
-
-**Author:** Max Salter  
-**Institution:** Spencer Fox Eccles School of Medicine, University of Utah  
-**Contact:** *[your email or GitHub handle]*  
+- Default vertebral range analyzed: **C2–C8 (vert 2:8)** — adjustable in the script.  
+- PAM50 template includes 37 labeled tracts; left/right IDs defined in `label/atlas/info_label.txt`.  
+- Units:
+  - Volume: mm³  
+  - CSA: mm²
+- To visualize results, overlay masks in FSLeyes or ITK-SNAP.
 
 ---
 
-## 🧭 License
+## Citation
 
-**MIT License** — freely reusable with attribution.
+If you use this pipeline, please cite:
+> De Leener B, Lévy S, Dupont SM, et al. SCT: Spinal Cord Toolbox, an open-source software for processing spinal cord MRI data. *NeuroImage*, 145:24–43, 2017.
 
-> “Precision is measured in millimeters, but reproducibility is measured in documentation.”
+---
+
+## Author & Contact
+
+**Author:** Max M. L. Salter  
+**Institution:** University of Utah – Neurosurgery Research Group  
+**Contact:** maxmls21@utah.edu  
+**Version:** 2025-10-23  
+**License:** MIT
+
