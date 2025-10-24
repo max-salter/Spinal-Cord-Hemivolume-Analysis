@@ -186,9 +186,8 @@ If you use this pipeline, please cite:
 
 ## Author & Contact
 
-**Author:** Max M. L. Salter  
-**Institution:** University of Utah – Neurosurgery Research Group  
-**Contact:** maxmls21@utah.edu  
+**Author:** Maxwell L. Salter  
+**Institution:** Spencer Fox Eccles School of Medicine, University of Utah
 **Version:** 2025-10-23  
 **License:** MIT
 
