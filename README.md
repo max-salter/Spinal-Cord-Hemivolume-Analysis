@@ -4,8 +4,6 @@
 This repository contains a fully automated workflow for computing **left and right hemicord volumes** per vertebral level from sagittal T2-weighted MRI scans of the cervical spinal cord.  
 The pipeline uses the **Spinal Cord Toolbox (SCT)** and **PAM50 atlas** to perform segmentation, vertebral labeling, template registration, and hemispheric metric extraction.
 
----
-
 ## Dependencies
 
 ### Required Software
