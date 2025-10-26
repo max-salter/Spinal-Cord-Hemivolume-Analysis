@@ -93,8 +93,6 @@ All CSVs are merged into one per-subject summary with columns:
 Output:  
 `*_metrics_perlevel.csv`
 
----
-
 ## Output Files (per subject)
 
 | File | Description |
@@ -112,8 +110,6 @@ Output:
 | `label/atlas/` | Warped PAM50 atlas files |
 | `nifti/` | Raw converted NIfTI images |
 
----
-
 ## Typical Workflow Summary
 ```
 ./sct_hemi_metrics_PAM50.sh "/path/to/DICOM_folder"
@@ -127,8 +123,6 @@ Output:
 7. Merges all metrics into one CSV.  
 
 All outputs are stored under the subject’s directory (auto-generated in the working folder).
-
----
 
 ## Output Directory Example
 
@@ -147,8 +141,6 @@ Spinal-Cord-Hemivolume-Analysis/
 └── warp_template2anat.nii.gz
 ```
 
----
-
 ## Algorithm Summary
 
 1. **Segmentation:** Deep learning–based spinal cord segmentation (`sct_deepseg_sc`).
@@ -159,8 +151,6 @@ Spinal-Cord-Hemivolume-Analysis/
 6. **Metric extraction:** Volume per level computed for each hemi; CSA computed for full cord.
 7. **Asymmetry computation:** Left vs. right volume differences quantified as an asymmetry index.
 
----
-
 ## Notes
 
 - Default vertebral range analyzed: **C2–C8 (vert 2:8)** — adjustable in the script.  
@@ -170,14 +160,9 @@ Spinal-Cord-Hemivolume-Analysis/
   - CSA: mm²
 - To visualize results, overlay masks in FSLeyes or ITK-SNAP.
 
----
-
 ## Citation
 
-If you use this pipeline, please cite:
 > De Leener B, Lévy S, Dupont SM, et al. SCT: Spinal Cord Toolbox, an open-source software for processing spinal cord MRI data. *NeuroImage*, 145:24–43, 2017.
-
----
 
 ## Author & Contact
 
