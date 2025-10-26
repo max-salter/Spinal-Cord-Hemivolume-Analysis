@@ -24,7 +24,7 @@ qc/
 *.png
 *.pdf
 
-# Medical data (NEVER commit DICOM/NIfTI)
+# Medical data (never commit DICOM/NIfTI)
 *.dcm
 *.IMA
 *.nii
