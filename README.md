@@ -167,7 +167,7 @@ Spinal-Cord-Hemivolume-Analysis/
 ## Author & Contact
 
 **Author:** Maxwell L. Salter  
-**Institution:** Spencer Fox Eccles School of Medicine, University of Utah
+**Institution:** Spencer Fox Eccles School of Medicine, University of Utah  
 **Version:** 2025-10-23  
 **License:** MIT
 
