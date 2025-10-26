@@ -21,8 +21,6 @@ source /path/to/spinalcordtoolbox/bin/activate
 
 Ensure the SCT data directory contains the **PAM50 atlas** (default: `/home/username/spinalcordtoolbox/data/PAM50`).
 
----
-
 ## Workflow Summary
 
 ### 1. Input
